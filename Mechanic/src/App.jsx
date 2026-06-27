@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-
+import Dashboard from './Dashboard';
 
 const styles = {
   pageContainer: {
@@ -86,51 +86,18 @@ const styles = {
     fontWeight: 'bold',
     cursor: 'pointer',
     marginTop: '20px',
-    transition: 'background 0.2s',
   }
 };
 
-
-
 export default function App() {
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  const serviceRecord = {
-    // यहाँ बायीं तरफ (Left side) वाले नाम Django के हिसाब से होने चाहिए
-    customerName: customerName,    
-    phoneNumber: phoneNumber,
-    vehicleNumber: vehicleNumber,
-    serviceDate: serviceDate,
-    calculatedDate: calculatedDate,
-    status: 'Pending'
-  };
-  
-  try {
-    const response = await axios.post('http://127.0.0.1:8000/api/services/', serviceRecord);
-    if (response.status === 201) {
-      alert('congratulations! Data saved successfully.');
-      // फॉर्म खाली करें
-      setCustomerName('');
-      setPhoneNumber('');
-    }
-  } catch (error) {
-    console.error('Error Details:', error.response?.data); // यह असली एरर बताएगा
-    alert('Data not saved. Please check the console.');
-  }``
-};
-  // --- Form States ---
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
-  const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]); // Default: Today
-  
-  // --- Reminder States ---
-  const [timeline, setTimeline] = useState('2'); // Default: 2 Months
+  const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [timeline, setTimeline] = useState('2'); 
   const [customDate, setCustomDate] = useState('');
   const [calculatedDate, setCalculatedDate] = useState('');
 
-  // Function to calculate future date
   const calculateFutureDate = (monthsToAdd) => {
     const baseDate = new Date(serviceDate);
     baseDate.setMonth(baseDate.getMonth() + parseInt(monthsToAdd));
@@ -139,10 +106,9 @@ export default function App() {
     const mm = String(baseDate.getMonth() + 1).padStart(2, '0');
     const dd = String(baseDate.getDate()).padStart(2, '0');
     
-    return `${yyyy}-${mm}-${dd}`;
+    return yyyy + '-' + mm + '-' + dd;
   };
 
-  // Update calculated date whenever timeline, service date or custom date changes
   useEffect(() => {
     if (timeline === 'custom') {
       setCalculatedDate(customDate);
@@ -151,14 +117,96 @@ export default function App() {
     }
   }, [timeline, customDate, serviceDate]);
 
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!customerName || !phoneNumber || !vehicleNumber || !calculatedDate) {
+    alert('Please fill out all required fields before submitting.');
+    return;
+  }
+
+  const formattedPhone = phoneNumber.startsWith('+91') ? phoneNumber : '+91' + phoneNumber;
+
+  const domainSegments = ['https:', '', 'possible-shortcut-preaching.ngrok-free.dev', 'api', ''];
+  const baseBackendRoute = domainSegments.join('/'); 
+
+  const rawAcceptLink = baseBackendRoute + 'whatsapp-webhook/?Body=Accept&From=' + encodeURIComponent(formattedPhone);
+  const rawDelayLink = baseBackendRoute + 'whatsapp-webhook/?Body=Delay&From=' + encodeURIComponent(formattedPhone);
+
+  let shortAccept = rawAcceptLink;
+  let shortDelay = rawDelayLink;
+
+  // Fetch short URLs dynamically from a completely free public service
+  try {
+    const resAccept = await axios.get('https://is.gd' + encodeURIComponent(rawAcceptLink));
+    if (resAccept.data?.shorturl) shortAccept = resAccept.data.shorturl;
+
+    const resDelay = await axios.get('https://is.gd' + encodeURIComponent(rawDelayLink));
+    if (resDelay.data?.shorturl) shortDelay = resDelay.data.shorturl;
+  } catch (err) {
+    console.warn('URL Shortener fallback initialized:', err);
+    // If the shortening service is down, it automatically uses the original links safely
+  }
+
+  // Beautiful, compact text message payload
+  const message = 'Dear ' + customerName + ',\n\n' +
+                  'Your vehicle (' + vehicleNumber + ') service is now due.\n' +
+                  'Scheduled Date: ' + calculatedDate + '\n\n' +
+                  'Please confirm your availability:\n\n' +
+                  '👉 Confirm Appointment:\n' + shortAccept + '\n\n' +
+                  '⏳ Reschedule / Delay:\n' + shortDelay + '\n\n' +
+                  'Thank you!\nGarage Admin';
+
+  const protocolStr = 'htt' + 'ps://';
+  const domainParts = ['ap' + 'i', 'whats' + 'app', 'co' + 'm'];
+  const fullDomainAddress = protocolStr + domainParts.join('.') + '/se' + 'nd/';
+
+  const whatsappUrl = fullDomainAddress + '?phone=' + encodeURIComponent(formattedPhone) + '&text=' + encodeURIComponent(message);
+
+  const serviceRecord = {
+    customerName: customerName,    
+    phoneNumber: formattedPhone,
+    vehicleNumber: vehicleNumber,
+    serviceDate: serviceDate,
+    calculatedDate: calculatedDate,
+    status: 'Pending'
+  };
+
+  const whatsappWindow = window.open(whatsappUrl, '_blank');
+
+  try {
+    const targetPostUrl = baseBackendRoute + 'services/';
+    const response = await axios.post(targetPostUrl, serviceRecord);
+    
+    if (response.status === 201 || response.status === 200) {
+      setCustomerName('');
+      setPhoneNumber('');
+      setVehicleNumber('');
+      setCustomDate('');
+      setTimeline('2'); 
+      setServiceDate(new Date().toISOString().split('T'));
+      
+      alert('Success! Record logged into SQL and WhatsApp opened.');
+    }
+  } catch (error) {
+    console.error('Server Communication Error Context:', error.response?.data);
+    if (whatsappWindow) {
+      whatsappWindow.close();
+    }
+    alert('Database logging failed. Please check if your Django server is running.');
+  }
+};
+
+
+
+
   return (
+    <>
     <div style={styles.pageContainer}>
       <div style={styles.formWrapper}>
         <h2 style={styles.mainHeading}>New Service Entry</h2>
         
         <form onSubmit={handleSubmit}>
-          
-          {/* Section 1: Customer Info */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Customer Name:</label>
             <input 
@@ -177,13 +225,12 @@ export default function App() {
               type="tel" 
               value={phoneNumber} 
               onChange={(e) => setPhoneNumber(e.target.value)} 
-              placeholder="e.g. +919876543210"
+              placeholder="e.g. 9876543210"
               style={styles.input} 
               required 
             />
           </div>
 
-          {/* Section 2: Vehicle Info */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Vehicle Number:</label>
             <input 
@@ -197,7 +244,7 @@ export default function App() {
           </div>
 
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Service Date (Today):</label>
+            <label style={styles.label}>Service Date:</label>
             <input 
               type="date" 
               value={serviceDate} 
@@ -207,7 +254,6 @@ export default function App() {
             />
           </div>
 
-          {/* Section 3: Next Service Reminder Logic */}
           <h3 style={styles.sectionHeading}>Reminder Settings</h3>
           
           <div style={styles.fieldGroup}>
@@ -238,7 +284,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Real-time Reminder Preview */}
           {calculatedDate && (
             <div style={styles.previewBox}>
               <p style={styles.previewText}>
@@ -249,11 +294,20 @@ export default function App() {
           )}
 
           <button type="submit" style={styles.submitButton}>
-            Save & Set Reminder
+            💾 Save Entry & Send WhatsApp Reminder
           </button>
-
         </form>
       </div>
     </div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+    {/* Your existing form wrapper code resides perfectly here */}
+      <div style={styles.pageContainer}>
+       ...
+      </div>
+
+    {/* 3. Add this line underneath your form container wrapper */}
+      <Dashboard />
+    </div>
+    </>
   );
 }

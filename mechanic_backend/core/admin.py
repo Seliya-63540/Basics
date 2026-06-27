@@ -1,7 +1,9 @@
 from django.contrib import admin
 from .models import ServiceRecord
+from django.contrib import admin
+from .models import SystemSetting
 
-# अपनी टेबल को रजिस्टर करें
+admin.site.register(SystemSetting)
 admin.site.register(ServiceRecord)
 
 

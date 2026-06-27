@@ -31,7 +31,11 @@ SECRET_KEY = 'django-insecure-h$bm(nfa__6-r%gm%+=qx-=cd98s0@a(u%jle*3-eb9xa(y-d@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    'possible-shortcut-preaching.ngrok-free.dev'
+]
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
@@ -63,7 +67,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-
+CORS_ALLOW_ALL_ORIGINS = True
 ROOT_URLCONF = 'mechanic_backend.urls'
 
 TEMPLATES = [
